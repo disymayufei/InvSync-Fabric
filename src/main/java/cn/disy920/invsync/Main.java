@@ -1,9 +1,11 @@
 package cn.disy920.invsync;
 
+import cn.disy920.invsync.access.PlayerAccess;
 import cn.disy920.invsync.database.PlayerDatabase;
 import cn.disy920.invsync.fabric.FabricMod;
 import cn.disy920.invsync.utils.Logger;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
@@ -27,6 +29,7 @@ public class Main extends FabricMod {
             ServerPlayerEntity player = handler.getPlayer();
             String playerName = player.getName().getString();
 
+            ((PlayerAccess)player).setWaiting(true);
             PlayerInventory inventory = player.getInventory();
             PlayerInventory inventoryClone = new PlayerInventory(player);
             inventoryClone.clone(inventory);
@@ -79,6 +82,7 @@ public class Main extends FabricMod {
 
                         player.sendMessageToClient(Text.literal("背包数据读取成功").setStyle(Style.EMPTY.withColor(Formatting.GREEN)), true);
 
+                        ((PlayerAccess)player).setWaiting(false);
                     }
                     else {  // 如果没数据那就先把玩家背包存一下
                         NbtCompound data = new NbtCompound();
@@ -96,6 +100,7 @@ public class Main extends FabricMod {
                             database.putInventoryNbt(data);
 
                             player.sendMessageToClient(Text.literal("未检测到背包数据，已自动创建！").setStyle(Style.EMPTY.withColor(Formatting.GREEN)), true);
+                            ((PlayerAccess)player).setWaiting(false);
                         }
                         catch (Exception e) {
                             database.close();

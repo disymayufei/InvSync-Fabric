@@ -1,0 +1,5 @@
+{
+  "auto-save-interval": 120,
+  "database-path": "InvSync-DB",
+  "server-name": "default"
+}

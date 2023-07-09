@@ -19,21 +19,22 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.UUID;
 
 import static cn.disy920.invsync.Main.MOD_INSTANCE;
 
 public class PlayerDatabase {
     private DB database;
     private final File dbDir;
-    private final String playerName;
+    private final UUID playerUuid;
 
-    public PlayerDatabase(String playerName) throws DatabaseCreateException, DatabaseReadException {
-        this.playerName = playerName;
+    public PlayerDatabase(UUID uuid) throws DatabaseCreateException, DatabaseReadException {
+        this.playerUuid = uuid;
 
         Options options = new Options();
         options.createIfMissing(true);
 
-        dbDir = new File(MOD_INSTANCE.getConfig().getString("database-path") + "/Players/" + playerName);
+        dbDir = new File(MOD_INSTANCE.getConfig().getString("database-path") + "/Players/" + playerUuid.toString());
 
         if (!dbDir.exists() || dbDir.isFile()) {
             if (!dbDir.mkdirs()) {
@@ -160,8 +161,8 @@ public class PlayerDatabase {
         return errorFile.exists() && errorFile.isFile();
     }
 
-    public String getPlayerName() {
-        return playerName;
+    public UUID getPlayerUuid() {
+        return playerUuid;
     }
 
     private byte[] toByte(String s) {

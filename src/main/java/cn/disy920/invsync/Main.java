@@ -5,7 +5,6 @@ import cn.disy920.invsync.database.PlayerDatabase;
 import cn.disy920.invsync.fabric.FabricMod;
 import cn.disy920.invsync.utils.Logger;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
@@ -15,10 +14,11 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Main extends FabricMod {
-    private final Map<String, PlayerDatabase> workingDatabase = new ConcurrentHashMap<>(64);
+    private final Map<UUID, PlayerDatabase> workingDatabase = new ConcurrentHashMap<>(64);
     private Thread autoSaveThread = null;
 
     public static Main MOD_INSTANCE = null;
@@ -27,7 +27,7 @@ public class Main extends FabricMod {
     public void onInit() {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
-            String playerName = player.getName().getString();
+            UUID playerUuid = player.getUuid();
 
             ((PlayerAccess)player).setWaiting(true);
             PlayerInventory inventory = player.getInventory();
@@ -51,7 +51,7 @@ public class Main extends FabricMod {
                     Exception exception = null;
                     for (int i = 0; i < 3; i++) {
                         try {
-                            database = new PlayerDatabase(playerName);
+                            database = new PlayerDatabase(playerUuid);
                             success = true;
                             break;
                         }
@@ -78,13 +78,19 @@ public class Main extends FabricMod {
                             inventory.insertStack(i, itemStack);
                         }
 
-                        workingDatabase.put(playerName, database);
+                        workingDatabase.put(playerUuid, database);
 
                         player.sendMessageToClient(Text.literal("背包数据读取成功").setStyle(Style.EMPTY.withColor(Formatting.GREEN)), true);
 
                         ((PlayerAccess)player).setWaiting(false);
                     }
                     else {  // 如果没数据那就先把玩家背包存一下
+                        if (!getConfig().getBoolean("default-server")) {
+                            handler.disconnect(Text.literal("您的背包数据尚未被创建，请先进入主生存服完成创建工作！").setStyle(Style.EMPTY.withColor(Formatting.RED)));
+                            database.close();
+                            return;
+                        }
+
                         NbtCompound data = new NbtCompound();
 
                         for (int i = 0; i < inventory.size(); i++) {
@@ -108,7 +114,7 @@ public class Main extends FabricMod {
                             database.makeBackupLog(inventoryClone);
 
                             handler.disconnect(Text.literal("您的背包保存失败，若您看到该消息，请立即联系管理员查看后台报错！"));
-                            Logger.warn(playerName + "的背包保存失败，以下是错误的堆栈信息:");
+                            Logger.warn(player.getName().getString() + "的背包保存失败，以下是错误的堆栈信息:");
                             e.printStackTrace();
                         }
                     }
@@ -119,7 +125,7 @@ public class Main extends FabricMod {
                         database.close();
                     }
                     handler.disconnect(Text.literal("背包同步时发生错误，错误信息: " + e.getMessage()).setStyle(Style.EMPTY.withColor(Formatting.RED)));
-                    Logger.error("加载" + playerName + "的数据库的过程中发生错误，以下是错误的堆栈信息: ");
+                    Logger.error("加载" + player.getName().getString() + "的数据库的过程中发生错误，以下是错误的堆栈信息: ");
                     e.printStackTrace();
                 }
             }).start();
@@ -127,10 +133,10 @@ public class Main extends FabricMod {
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
-            String playerName = player.getName().getString();
+            UUID playerUuid = player.getUuid();
 
             new Thread(() -> {
-                PlayerDatabase database = workingDatabase.get(playerName);
+                PlayerDatabase database = workingDatabase.get(playerUuid);
                 if (database != null) {
                     PlayerInventory inventory = player.getInventory();
 
@@ -153,7 +159,7 @@ public class Main extends FabricMod {
                     }
                     database.close();
 
-                    workingDatabase.remove(playerName);
+                    workingDatabase.remove(playerUuid);
                 }
             }).start();
         });
@@ -169,9 +175,9 @@ public class Main extends FabricMod {
 
         autoSaveThread = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
-                for (Map.Entry<String, PlayerDatabase> entry : workingDatabase.entrySet()) {
-                    String playerName = entry.getKey();
-                    ServerPlayerEntity player = FabricMod.getServer().getPlayerManager().getPlayer(playerName);
+                for (Map.Entry<UUID, PlayerDatabase> entry : workingDatabase.entrySet()) {
+                    UUID playerUuid = entry.getKey();
+                    ServerPlayerEntity player = FabricMod.getServer().getPlayerManager().getPlayer(playerUuid);
                     if (player != null) {
                         PlayerDatabase database = entry.getValue();
                         if (database != null) {
@@ -193,7 +199,7 @@ public class Main extends FabricMod {
                             }
                             catch (Exception e) {
                                 player.sendMessage(Text.literal("您的背包保存失败，若您看到该消息，请立即联系管理员查看后台报错！"));
-                                Logger.warn(playerName + "的背包保存失败，以下是错误的堆栈信息:");
+                                Logger.warn(player.getName().getString() + "的背包保存失败，以下是错误的堆栈信息:");
                                 e.printStackTrace();
                             }
                         }

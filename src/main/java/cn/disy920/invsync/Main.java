@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Main extends FabricMod {
     private final Map<UUID, PlayerDatabase> workingDatabase = new ConcurrentHashMap<>(64);
     private Thread autoSaveThread = null;
+    private boolean saveThreadRunning = false;
 
     public static Main MOD_INSTANCE = null;
 
@@ -135,9 +136,18 @@ public class Main extends FabricMod {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
             UUID playerUuid = player.getUuid();
+            PlayerDatabase database = workingDatabase.get(playerUuid);
+            workingDatabase.remove(playerUuid);
 
             new Thread(() -> {
-                PlayerDatabase database = workingDatabase.get(playerUuid);
+                while (saveThreadRunning) {
+                    try {
+                        Thread.sleep(50);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+
                 if (database != null) {
                     PlayerInventory inventory = player.getInventory();
 
@@ -159,8 +169,6 @@ public class Main extends FabricMod {
                         database.markError(e);
                     }
                     database.close();
-
-                    workingDatabase.remove(playerUuid);
                 }
             }).start();
         });
@@ -176,6 +184,7 @@ public class Main extends FabricMod {
 
         autoSaveThread = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
+                saveThreadRunning = true;
                 for (Map.Entry<UUID, PlayerDatabase> entry : workingDatabase.entrySet()) {
                     UUID playerUuid = entry.getKey();
                     ServerPlayerEntity player = FabricMod.getServer().getPlayerManager().getPlayer(playerUuid);
@@ -209,12 +218,16 @@ public class Main extends FabricMod {
                     }
                 }
 
+                saveThreadRunning = false;
+
                 try {
                     Thread.sleep(autoSaveInterval * 1000L);
                 } catch (InterruptedException e) {
                     break;
                 }
             }
+
+            saveThreadRunning = false;
         }, "InvSync-AutoSave");
     }
 

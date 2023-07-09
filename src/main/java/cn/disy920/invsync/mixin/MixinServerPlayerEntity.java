@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.Mixin;
 @Mixin(ServerPlayerEntity.class)
 public class MixinServerPlayerEntity implements PlayerAccess {
 
-    private boolean waiting = true;
+    private boolean waiting = false;
 
     @Override
     public boolean isWaiting() {

@@ -43,13 +43,13 @@ public class Main extends FabricMod {
 
                 try {
                     try {
-                        Thread.sleep(1000);
+                        Thread.sleep(300);
                     }
                     catch (InterruptedException ignore){}
 
                     boolean success = false;
                     Exception exception = null;
-                    for (int i = 0; i < 3; i++) {
+                    for (int i = 0; i < 5; i++) {
                         try {
                             database = new PlayerDatabase(playerUuid);
                             success = true;
@@ -57,7 +57,7 @@ public class Main extends FabricMod {
                         }
                         catch (Exception e) {
                             exception = e;
-                            Thread.sleep(1000);
+                            Thread.sleep(500);
                         }
                     }
 
@@ -75,7 +75,7 @@ public class Main extends FabricMod {
                     if (nbtData != null) {
                         for (int i = 0; i < inventory.size(); i++) {
                             ItemStack itemStack = ItemStack.fromNbt(nbtData.getCompound(String.valueOf(i)));
-                            inventory.insertStack(i, itemStack);
+                            inventory.setStack(i, itemStack);
                         }
 
                         workingDatabase.put(playerUuid, database);
@@ -93,13 +93,14 @@ public class Main extends FabricMod {
 
                         NbtCompound data = new NbtCompound();
 
-                        for (int i = 0; i < inventory.size(); i++) {
-                            ItemStack itemStack = inventory.getStack(i);
+                        for (int i = 0; i < inventoryClone.size(); i++) {
+                            ItemStack itemStack = inventoryClone.getStack(i);
 
                             NbtCompound emptyCompound = new NbtCompound();
                             NbtCompound itemCompound = itemStack.writeNbt(emptyCompound);
 
                             data.put(String.valueOf(i), itemCompound);
+                            inventory.setStack(i, itemStack);
                         }
 
                         try {
@@ -179,6 +180,8 @@ public class Main extends FabricMod {
                     UUID playerUuid = entry.getKey();
                     ServerPlayerEntity player = FabricMod.getServer().getPlayerManager().getPlayer(playerUuid);
                     if (player != null) {
+                        ((PlayerAccess)player).setWaiting(false);
+
                         PlayerDatabase database = entry.getValue();
                         if (database != null) {
                             PlayerInventory inventory = player.getInventory();
